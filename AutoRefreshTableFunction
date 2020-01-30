@@ -1,0 +1,42 @@
+CREATE PROCEDURE [dbo].[RefreshFunction]
+@FncName nvarchar(500) = NULL
+AS
+BEGIN
+
+	if(@FncName is null)
+	begin	
+			declare @TableName nvarchar(500);
+			declare @FunctionName nvarchar(500);
+			declare @EventCursor as cursor;
+			set  @EventCursor = cursor for
+			SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME
+			open  @EventCursor;
+			fetch next from  @EventCursor into @TableName
+			while @@FETCH_STATUS = 0
+			begin
+
+				IF object_id('fvp' + @TableName, 'IF') IS NOT NULL
+				begin
+					set @FunctionName = 'fvp' + @TableName;
+					exec sys.sp_refreshsqlmodule @FunctionName;
+					print 'Function Güncellendi : ' + @FunctionName
+				end
+
+			fetch next from  @EventCursor into  @TableName
+			end
+			CLOSE @EventCursor;
+			DEALLOCATE @EventCursor;
+	end	
+	else
+	begin
+		IF object_id(@FncName, 'IF') IS NOT NULL
+				begin
+					exec sys.sp_refreshsqlmodule @FncName;
+					print 'Function Güncellendi : ' + @FncName
+				end
+				else
+				begin	
+					print 'Böyle bir function yok : ' + @FncName
+				end
+	end
+END
