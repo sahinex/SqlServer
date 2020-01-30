@@ -1,0 +1,57 @@
+CREATE PROCEDURE [dbo].[FKControl]
+@IsCreateFK bit = 0
+AS
+BEGIN
+		
+		IF OBJECT_ID('tempdb..#FKControl') IS NOT NULL DROP TABLE #FKControl		
+		CREATE TABLE #FKControl (TableName nvarchar(500), ColumnName nvarchar(250),CreateScript nvarchar(1000))	
+
+		declare @TableName nvarchar(500);
+		declare @ColumnName nvarchar(500);
+		declare @FunctionName nvarchar(500);
+		declare @TableCursor as cursor;
+		declare @ColumnsCursor as cursor;
+		set  @TableCursor = cursor for
+		SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME
+		open  @TableCursor;
+		fetch next from  @TableCursor into @TableName
+		while @@FETCH_STATUS = 0
+		begin					
+			    set  @ColumnsCursor = cursor for
+			    SELECT ColumnName FROM GetTableObjectColumnList(@TableName) WHERE DataType = 'int' and ColumnName <> 'Id' and  right(ColumnName, 2) = 'Id'
+			    open  @ColumnsCursor;
+			    fetch next from  @ColumnsCursor into @ColumnName
+			    while @@FETCH_STATUS = 0
+			    begin
+			    
+			       declare @FKCount int = (select count(*) FROM dbo.GetTableObjectColumnFKList(@TableName,@ColumnName))
+				
+				  if(@FKCount = 0)
+				  begin
+
+				   declare @FKName nvarchar(250) = '[FK_'+ @TableName +'_'+ replace(@ColumnName,'Id','') +']';
+
+				   declare @FKCreateScript nvarchar(1000) = ('ALTER TABLE [dbo].['+@TableName+']  WITH NOCHECK ADD  CONSTRAINT '+@FKName+' FOREIGN KEY(['+@ColumnName+']) REFERENCES [dbo].['+@TableName+'] ([Id])');
+
+				   insert into #FKControl(TableName,ColumnName,CreateScript) values (@TableName,@ColumnName,@FKCreateScript)
+
+				   if(@IsCreateFK = 1) exec(@FKCreateScript)
+
+				  end						 
+		
+			    fetch next from  @ColumnsCursor into  @ColumnName
+			    end
+			    CLOSE @ColumnsCursor;
+			    DEALLOCATE @ColumnsCursor;
+		
+		
+		fetch next from  @TableCursor into  @TableName
+		end
+		CLOSE @TableCursor;
+		DEALLOCATE @TableCursor;
+
+		select * from #FKControl
+
+		IF OBJECT_ID('tempdb..#FKControl') IS NOT NULL DROP TABLE #FKControl	
+
+END
