@@ -1,3 +1,100 @@
+CREATE FUNCTION [dbo].[GetColumnReferenceTable]
+(
+    @ColumnName nvarchar(200)
+)
+RETURNS VARCHAR(500)
+AS
+BEGIN
+   declare @ReferenceTable as nvarchar(200);
+   declare @KeepValues as nvarchar(200) = '%[^ ][A-Z]%'
+   declare @TableControl int = 0; 
+   while PatIndex(@KeepValues collate Latin1_General_Bin, @ColumnName) > 0
+   set @ColumnName = Stuff(@ColumnName, PatIndex(@KeepValues collate Latin1_General_Bin, @ColumnName) + 1, 0, ' ')   
+   declare @SplitCount int = (select COUNT(*) from [SplitString](@ColumnName,''))
+   while PatIndex(@KeepValues collate Latin1_General_Bin, @ColumnName) > 0
+
+   set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+
+   if @TableControl = 0  
+   begin
+		select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id <> @SplitCount
+		set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+      
+   if @TableControl = 0 
+   begin
+		set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (2) and Id <> @SplitCount
+	    set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+  end
+    
+  if @TableControl = 0
+   begin
+		set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (3,4) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+  end  
+  
+  if @TableControl = 0
+    begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (3,4,5) and Id <> @SplitCount
+		set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+	end   
+   
+   if @TableControl = 0
+   begin
+       set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (3) and Id <> @SplitCount
+       set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+  end     
+   
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (1,2) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (1,2,3) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (1,2,3,4) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (2,3) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (2,3,4) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if @TableControl = 0
+   begin
+	    set @ReferenceTable = null; select @ReferenceTable = COALESCE(@ReferenceTable + '', '') + ISNULL([Data],'') from [SplitString](@ColumnName,'') where Id in (2,3,4,5) and Id <> @SplitCount
+        set @TableControl = (select count(*) FROM INFORMATION_SCHEMA.TABLES where TABLE_TYPE = 'BASE TABLE' and TABLE_NAME = @ReferenceTable)
+   end
+
+   if(CHARINDEX('User',@ReferenceTable) > 0)
+   begin
+		set @ReferenceTable = 'User';
+   end
+
+   if(@TableControl = 0)
+   begin
+		set @ReferenceTable = NULL
+   end
+
+   return @ReferenceTable;
+END
+GO
+GO
 CREATE FUNCTION [dbo].[GetTableObjectColumnFKList] 
 (	
 	-- Add the parameters for the function here
@@ -98,7 +195,7 @@ AS
 BEGIN
 		
 		IF OBJECT_ID('tempdb..#FKControl') IS NOT NULL DROP TABLE #FKControl		
-		CREATE TABLE #FKControl (TableName nvarchar(500), ColumnName nvarchar(250),CreateScript nvarchar(1000))	
+		CREATE TABLE #FKControl (TableName nvarchar(500), ColumnName nvarchar(250),CreateScript nvarchar(1000),IsFindFKRefTable bit)	
 
 		declare @TableName nvarchar(500);
 		declare @ColumnName nvarchar(500);
@@ -125,11 +222,15 @@ BEGIN
 
 				   declare @FKName nvarchar(250) = '[FK_'+ @TableName +'_'+ replace(@ColumnName,'Id','') +']';
 
-				   declare @FKCreateScript nvarchar(1000) = ('ALTER TABLE [dbo].['+@TableName+']  WITH NOCHECK ADD  CONSTRAINT '+@FKName+' FOREIGN KEY(['+@ColumnName+']) REFERENCES [dbo].['+@TableName+'] ([Id])');
+				   declare @RFName nvarchar(250) = (select [dbo].[GetColumnReferenceTable](@ColumnName))
 
-				   insert into #FKControl(TableName,ColumnName,CreateScript) values (@TableName,@ColumnName,@FKCreateScript)
+				   declare @IsFindFKRefTable bit = (case when @RFName is not null then 1 else 0 end)
 
-				   if(@IsCreateFK = 1) exec(@FKCreateScript)
+				   declare @FKCreateScript nvarchar(1000) = ('ALTER TABLE [dbo].['+@TableName+']  WITH NOCHECK ADD  CONSTRAINT '+@FKName+' FOREIGN KEY(['+@ColumnName+']) REFERENCES [dbo].['+@RFName+'] ([Id])');
+
+				   insert into #FKControl(TableName,ColumnName,CreateScript,IsFindFKRefTable) values (@TableName,@ColumnName,@FKCreateScript,@IsFindFKRefTable)
+
+				   if(@IsCreateFK = 1 and @IsFindFKRefTable = 1) exec(@FKCreateScript)
 
 				  end						 
 		
@@ -149,3 +250,4 @@ BEGIN
 		IF OBJECT_ID('tempdb..#FKControl') IS NOT NULL DROP TABLE #FKControl	
 
 END
+
